@@ -2,6 +2,7 @@ import { Schema, model } from "mongoose";
 
 const transportSchema = new Schema({
     transportType: { type: String, required: true },
+    phoneNumber: { type: String, unique: true, required: true, },
     transportNumber: { type: String, required: true },
     class: { type: String, required: true },
     seat: { type: String, required: true }

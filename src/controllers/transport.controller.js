@@ -1,9 +1,16 @@
 import { isValidObjectId } from "mongoose";
 import { resError } from "../helpers/resError.js";
 import { resSuccess } from "../helpers/resSuccess.js";
-import { createTransportValidator, updateTransportValidator } from "../validation/transport.validation.js";
+import { confirmSignInTransportValidator, createTransportValidator, signInTransportValidator, updateTransportValidator } from "../validation/transport.validation.js";
 import Transport from "../models/transport.model.js";
 import Ticket from "../models/ticket.model.js";
+import { generateOTP } from "../helpers/generate-otp.js";
+import NodeCache from "node-cache";
+import { sendSMS } from "../helpers/send-sms.js";
+import { Token } from "../utils/token-service.js";
+
+const cache = new NodeCache();
+const token = new Token();
 
 export class TransportController {
     async createTransport(req, res) {
@@ -12,12 +19,66 @@ export class TransportController {
             if (error) {
                 return resError(res, error, 422);
             }
-            const existsTransportNumber = await Transport.findOne({ transportNumber: value.transportNumber });
-            if (existsTransportNumber) {
+            const existsPhoneNumber = await Transport.findOne({ phoneNumber: value.phoneNumber });
+            if (existsPhoneNumber) {
                 return resError(res, `This transport already exists`, 409);
             }
             const newTransport = await Transport.create(value);
             return resSuccess(res, newTransport, 201);
+        } catch (error) {
+            return resError(res, error);
+        }
+    }
+
+    async signInTransport(req, res) {
+        try {
+            const { value, error } = signInTransportValidator(req.body);
+            if (error) {
+                console.log("Validator error:", error)
+                return resError(res, error, 422);
+            }
+            const { phoneNumber } = value;
+            const transport = await Transport.findOne({ phoneNumber });
+            if (!transport) {
+                return resError(res, `Transport not found`, 404);
+            }
+            const otp = generateOTP();
+            cache.set(phoneNumber, otp, 120);
+            const sms = "Sizning tasdiqlash kodingiz: " + otp;
+            await sendSMS(phoneNumber, sms);
+            return resSuccess(res, {});
+        } catch (error) {
+            return resError(res, error);
+        }
+    }
+
+    async confirmSignInTransport(req, res) {
+        try {
+            const { value, error } = confirmSignInTransportValidator(req.body);
+            if (error) {
+                return resError(res, error, 422);
+            }
+            const transport = await Transport.findOne({ phoneNumber: value.phoneNumber });
+            if (!transport) {
+                return resError(res, `Transport not found`, 404);
+            }
+            const cacheOTP = cache.get(value.phoneNumber);
+            if (!cacheOTP || cacheOTP != value.otp) {
+                return resError(res, `OTP expired`, 400);
+            }
+            cache.del(value.phoneNumber);
+            const payload = { id: transport._id };
+            const accessToken = await token.generateAccessToken(payload);
+            const refreshtoken = await token.generateRefreshToken(payload);
+            res.cookie('refreshTokenTransport', refreshtoken, {
+                httpOnly: true,
+                secure: true,
+                maxAge: 60 * 24 * 60 * 60 * 1000
+            });
+            return resSuccess(res, {
+                data: transport,
+                token: accessToken
+            });
         } catch (error) {
             return resError(res, error);
         }

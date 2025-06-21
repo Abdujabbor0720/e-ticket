@@ -14,14 +14,13 @@ export class AdminController {
             if (error) {
                 return resError(res, error, 422);
             }
-            const { username, password } = req.body;
             const existsUsername = await Admin.findOne({ username: value.username });
             if (existsUsername) {
                 return resError(res, `Username already exists`, 409);
             }
             const hashedPassword = await crypto.encrypt(value.password);
             const admin = await Admin.create({
-                username,
+                username: value.username,
                 hashedPassword
             });
             return resSuccess(res, admin, 201);
@@ -75,7 +74,7 @@ export class AdminController {
             const id = req.params.id;
             await AdminController.findAdminById(res, id);
             await Admin.findByIdAndDelete(id);
-            return resSuccess(res, { message: 'Admin deleted successfully'});
+            return resSuccess(res, { message: 'Admin deleted successfully' });
         } catch (error) {
             return resError(res, error);
         }

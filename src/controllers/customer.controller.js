@@ -74,11 +74,9 @@ export class CustomerController {
                 } else {
                     console.log(info);
                 }
-                cache.set(email, otp, 300);
-                return resSuccess(res, {
-                    message: `OTP successfully sent to email`
-                })
-            })
+            });
+            cache.set(email, otp, 300);
+            return resSuccess(res, {})
         } catch (error) {
             return resError(res, error);
         }
@@ -98,6 +96,7 @@ export class CustomerController {
             if (!cacheOTP || cacheOTP != value.otp) {
                 return resError(res, `OTP expired`, 400);
             }
+            cache.del(value.email);
             const payload = { id: customer._id };
             const accessToken = await token.generateAccessToken(payload);
             const refreshToken = await token.generateRefreshToken(payload);
@@ -109,7 +108,52 @@ export class CustomerController {
             return resSuccess(res, {
                 data: customer,
                 token: accessToken
-            }, 201);
+            }, 200);
+        } catch (error) {
+            return resError(res, error);
+        }
+    }
+
+    async newAccessToken(req, res) {
+        try {
+            const refreshToken = req.cookies?.refreshTokenCustomer;
+            if (!refreshToken) {
+                return resError(res, `Refresh token expired`, 400);
+            }
+            const decodedToken = await token.verifyToken(refreshToken, config.REFRESH_TOKEN_KEY);
+            if (!decodedToken) {
+                return resError(res, `Invalid token`, 400)
+            }
+            const customer = await Customer.findById(decodedToken.id);
+            if (!customer) {
+                return resError(res, `Customer not found`, 404)
+            }
+            const payload = { id: customer._id };
+            const accessToken = await token.generateAccessToken(payload);
+            return resSuccess(res, {
+                token: accessToken
+            });
+        } catch (error) {
+            return resError(res, error);
+        }
+    }
+
+    async logOut(req, res) {
+        try {
+            const refreshToken = req.cookies?.refreshTokenCustomer;
+            if (!refreshToken) {
+                return resError(res, `Refresh token expired`, 400);
+            }
+            const decodedToken = await token.verifyToken(refreshToken, config.REFRESH_TOKEN_KEY);
+            if (!decodedToken) {
+                return resError(res, `Invalid token`, 400)
+            }
+            const customer = await Customer.findById(decodedToken.id);
+            if (!customer) {
+                return resError(res, `Customer not found`, 404)
+            }
+            res.clearCookie('refreshTokenCustomer');
+            return resSuccess(res, {});
         } catch (error) {
             return resError(res, error);
         }
