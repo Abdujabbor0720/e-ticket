@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { TransportController } from "../controllers/transport.controller.js";
+import { AuthGuard } from "../guards/auth.guard.js";
+import { RolesGuard } from "../guards/roles.guard.js";
 
 const router = Router();
 const controller = new TransportController();

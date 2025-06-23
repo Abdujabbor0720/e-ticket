@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-export const createValidator = (data) => {
+export const createAdminValidator = (data) => {
     const admin = Joi.object({
         username: Joi.string().min(4).required(),
         password: Joi.string().regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[$@!%*?&.,])[A-Za-z\d$@!%*?&.,]{8,32}$/).required()
@@ -8,7 +8,7 @@ export const createValidator = (data) => {
     return admin.validate(data);
 }
 
-export const updateValidator = (data) => {
+export const updateAdminValidator = (data) => {
     const admin = Joi.object({
         username: Joi.string().min(4).optional(),
         password: Joi.string().regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[$@!%*?&.,])[A-Za-z\d$@!%*?&.,]{8,32}$/).optional()
