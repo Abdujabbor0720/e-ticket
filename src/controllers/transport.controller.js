@@ -84,6 +84,51 @@ export class TransportController {
         }
     }
 
+    async newAccessTokenTransport(req, res) {
+            try {
+                const refreshToken = req.cookies?.refreshTokenTransport;
+                if (!refreshToken) {
+                    return resError(res, `Refresh token expired`, 400);
+                }
+                const decodedToken = await token.verifyToken(refreshToken, config.REFRESH_TOKEN_KEY);
+                if (!decodedToken) {
+                    return resError(res, `Invalid token`, 400);
+                }
+                const transport = await Transport.findById(decodedToken.id);
+                if (!transport) {
+                    return resError(res, `Transport not found`, 404);
+                }
+                const payload = { id: transport._id, role: transport.role };
+                const accessToken = await  token.generateAccessToken(payload);
+                return resSuccess(res, {
+                    token: accessToken
+                });
+            } catch (error) {
+                return resError(res, error);
+            }
+        }
+
+    async logOutTransport(req, res) {
+        try {
+            const refreshToken = req.cookies?.refreshTokenTransport;
+            if (!refreshToken) {
+                return resError(res, `Refresh token expired`, 400);
+            }
+            const decodedToken = await verifyToken(refreshToken, config.REFRESH_TOKEN_KEY);
+            if (!decodedToken) {
+                return resError(res, `Invalid token`, 400);
+            }
+            const transport = await Transport.findById(decodedToken.id);
+            if (!transport) {
+                return resError(res, `Transport not found`, 404);
+            }
+            res.clearCookie('refreshTokenTransport');
+            return resSuccess(res, {});
+        } catch (error) {
+            return resError(res, error);
+        }
+    }
+
     async getAllTransports(_, res) {
         try {
             const transports = await Transport.find();
